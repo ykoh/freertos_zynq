@@ -60,36 +60,43 @@
 
 
 # standalone bsp version. set this to the latest "ACTIVE" version.
-set standalone_version standalone_v3_05_a
+#set standalone_version standalone_v3_11_a
+set standalone_version standalone_v4_1
 
 proc FreeRTOS_drc {os_handle} {
 
     global env
 
-    set sw_proc_handle [xget_libgen_proc_handle]
-    set hw_proc_handle [xget_handle $sw_proc_handle "IPINST"]
-    set proctype [xget_value $hw_proc_handle "OPTION" "IPNAME"]
+    set sw_proc_handle [get_sw_processor]
+    set hw_proc_handle [get_cells [get_property HW_INSTANCE $sw_proc_handle] ]
+    set proctype [get_property IP_NAME $hw_proc_handle]
+    set procname [get_property NAME    $hw_proc_handle]
 
 }
 
+# --------------------------------------
+# Tcl procedure generate
+# -------------------------------------
 proc generate {os_handle} {
 
     variable standalone_version
 
-    set sw_proc_handle [xget_libgen_proc_handle]
-    set hw_proc_handle [xget_handle $sw_proc_handle "IPINST"]
-    set proctype [xget_value $hw_proc_handle "OPTION" "IPNAME"]
+    set sw_proc_handle [get_sw_processor]
+    set hw_proc_handle [get_cells [get_property HW_INSTANCE $sw_proc_handle] ]
+    set proctype [get_property IP_NAME $hw_proc_handle]
+    set procname [get_property NAME    $hw_proc_handle]
     
+    set enable_sw_profile [get_property CONFIG.enable_sw_intrusive_profiling $os_handle]
     set need_config_file "false"
 
 	# proctype should be "microblaze" or "ppc405" or "ppc405_virtex4" or "ppc440" or ps7_cortexa9
-    set armsrcdir "../${standalone_version}/src/cortexa9"
-    set armccdir "../${standalone_version}/src/cortexa9/armcc"
-    set ccdir "../${standalone_version}/src/cortexa9/gcc"
+	set armsrcdir "../${standalone_version}/src/cortexa9"
+	set armccdir "../${standalone_version}/src/cortexa9/armcc"
+	set ccdir "../${standalone_version}/src/cortexa9/gcc"
 	set commonsrcdir "../${standalone_version}/src/common"
-    set mbsrcdir "../${standalone_version}/src/microblaze"
-    set ppcsrcdir "../${standalone_version}/src/ppc405"
-    set ppc440srcdir "../${standalone_version}/src/ppc440"
+	set mbsrcdir "../${standalone_version}/src/microblaze"
+	set ppcsrcdir "../${standalone_version}/src/ppc405"
+	set ppc440srcdir "../${standalone_version}/src/ppc440"
 
 	foreach entry [glob -nocomplain [file join $commonsrcdir *]] {
 		file copy -force $entry [file join ".." "${standalone_version}" "src"]
@@ -107,8 +114,9 @@ proc generate {os_handle} {
 					file copy -force $entry [file join ".." "${standalone_version}" "src"]
 		}
 		
+		file delete -force "../${standalone_version}/src/asm_vectors.S"
 		file delete -force "../${standalone_version}/src/armcc"
-        file delete -force "../${standalone_version}/src/gcc"
+		file delete -force "../${standalone_version}/src/gcc"
             
 		set need_config_file "true"
 		
@@ -159,73 +167,82 @@ proc generate {os_handle} {
 	file delete -force $ppc440srcdir
 	file delete -force $armsrcdir
 	file delete -force $ccdir
-    file delete -force $commonsrcdir
-    file delete -force $armccdir
+	file delete -force $commonsrcdir
+	file delete -force $armccdir
 
 	# Handle stdin and stdout
-	xhandle_stdin $os_handle
-	xhandle_stdout $os_handle
+	handle_stdin $os_handle
+	handle_stdout $os_handle
 
     set config_file [xopen_new_include_file "./src/FreeRTOSConfig.h" "FreeRTOS Configuration parameters"]
     puts $config_file "\#include \"xparameters.h\" \n"
 
-    set val [xget_value $os_handle "PARAMETER" "use_preemption"]
+    set val [get_property CONFIG.use_preemption $os_handle]
+    #set val [xget_value $os_handle "PARAMETER" "use_preemption"]
     if {$val == "false"} {
         xput_define $config_file "configUSE_PREEMPTION" "0"
     } else {
         xput_define $config_file "configUSE_PREEMPTION" "1"
     }
 
-    set val [xget_value $os_handle "PARAMETER" "use_mutexes"]
+    set val [get_property CONFIG.use_mutexes $os_handle]
+    #set val [xget_value $os_handle "PARAMETER" "use_mutexes"]
     if {$val == "false"} {
         xput_define $config_file "configUSE_MUTEXES" "0"
     } else {
         xput_define $config_file "configUSE_MUTEXES" "1"
     }
     
-    set val [xget_value $os_handle "PARAMETER" "use_recursive_mutexes"]
+    set val [get_property CONFIG.use_recursive_mutexes $os_handle]
+    #set val [xget_value $os_handle "PARAMETER" "use_recursive_mutexes"]
     if {$val == "false"} {
         xput_define $config_file "configUSE_RECURSIVE_MUTEXES" "0"
     } else {
         xput_define $config_file "configUSE_RECURSIVE_MUTEXES" "1"
     }
 
-    set val [xget_value $os_handle "PARAMETER" "use_counting_semaphores"]
+    set val [get_property CONFIG.use_counting_semaphores $os_handle]
+    #set val [xget_value $os_handle "PARAMETER" "use_counting_semaphores"]
     if {$val == "false"} {
         xput_define $config_file "configUSE_COUNTING_SEMAPHORES" "0"
     } else {
         xput_define $config_file "configUSE_COUNTING_SEMAPHORES" "1"
     }
 
-    set val [xget_value $os_handle "PARAMETER" "use_timers"]
+    set val [get_property CONFIG.use_timers $os_handle]
+    #set val [xget_value $os_handle "PARAMETER" "use_timers"]
     if {$val == "false"} {
         xput_define $config_file "configUSE_TIMERS" "0"
     } else {
         xput_define $config_file "configUSE_TIMERS" "1"
     }
 
-    set val [xget_value $os_handle "PARAMETER" "use_idle_hook"]
+    set val [get_property CONFIG.use_idle_hook $os_handle]
+    #set val [xget_value $os_handle "PARAMETER" "use_idle_hook"]
     if {$val == "false"} {
         xput_define $config_file "configUSE_IDLE_HOOK"    "0"
     } else {
         xput_define $config_file "configUSE_IDLE_HOOK"    "1"
     }
 
-    set val [xget_value $os_handle "PARAMETER" "use_tick_hook"]
+    set val [get_property CONFIG.use_tick_hook $os_handle]
+    #set val [xget_value $os_handle "PARAMETER" "use_tick_hook"]
     if {$val == "false"} {
         xput_define $config_file "configUSE_TICK_HOOK"    "0"
     } else {
         xput_define $config_file "configUSE_TICK_HOOK"    "1"
     }
 
-    set val [xget_value $os_handle "PARAMETER" "use_malloc_failed_hook"]
+    set val [get_property CONFIG.use_malloc_failed_hook $os_handle]
+    #set val [xget_value $os_handle "PARAMETER" "use_malloc_failed_hook"]
     if {$val == "false"} {
         xput_define $config_file "configUSE_MALLOC_FAILED_HOOK"    "0"
     } else {
         xput_define $config_file "configUSE_MALLOC_FAILED_HOOK"    "1"
     }
 
-    set val [xget_value $os_handle "PARAMETER" "use_trace_facility"]
+    set val [get_property CONFIG.use_trace_facility $os_handle]
+    #set val [xget_value $os_handle "PARAMETER" "use_trace_facility"]
     if {$val == "false"} {
         xput_define $config_file "configUSE_TRACE_FACILITY" "0"
     } else {
@@ -236,52 +253,62 @@ proc generate {os_handle} {
     xput_define $config_file "configUSE_APPLICATION_TASK_TAG"   "0"
     xput_define $config_file "configUSE_CO_ROUTINES"    "0"
 
-    #set systmr_interval [xget_value $os_handle "PARAMETER" "systmr_interval"]
-    xput_define $config_file "configTICK_RATE_HZ"     "( ( portTickType ) 100 )"
+    set tick_rate [get_property CONFIG.tick_rate $os_handle]
+    #set tick_rate 100
+    #set tick_rate [xget_value $os_handle "PARAMETER" "tick_rate"]
+    xput_define $config_file "configTICK_RATE_HZ"     "( ( portTickType ) ($tick_rate) )"
     
-    set max_priorities [xget_value $os_handle "PARAMETER" "max_priorities"]
+    set max_priorities [get_property CONFIG.max_priorities  $os_handle]
+    #set max_priorities [xget_value $os_handle "PARAMETER" "max_priorities"]
     xput_define $config_file "configMAX_PRIORITIES"   "( ( unsigned portBASE_TYPE ) $max_priorities)"
     xput_define $config_file "configMAX_CO_ROUTINE_PRIORITIES" "2"
     
-    set min_stack [xget_value $os_handle "PARAMETER" "minimal_stack_size"]
+    set min_stack [get_property CONFIG.minimal_stack_size  $os_handle]
+    #set min_stack [xget_value $os_handle "PARAMETER" "minimal_stack_size"]
     set min_stack [expr [expr $min_stack + 3] & 0xFFFFFFFC]
     xput_define $config_file "configMINIMAL_STACK_SIZE" "( ( unsigned short ) $min_stack)"
 
-    set total_heap_size [xget_value $os_handle "PARAMETER" "total_heap_size"]
+    set total_heap_size [get_property CONFIG.total_heap_size  $os_handle]
+    #set total_heap_size [xget_value $os_handle "PARAMETER" "total_heap_size"]
     set total_heap_size [expr [expr $total_heap_size + 3] & 0xFFFFFFFC]
     xput_define $config_file "configTOTAL_HEAP_SIZE"  "( ( size_t ) ( $total_heap_size ) )"
 
-    set max_task_name_len [xget_value $os_handle "PARAMETER" "max_task_name_len"]
+    set max_task_name_len [get_property CONFIG.max_task_name_len  $os_handle]
+    #set max_task_name_len [xget_value $os_handle "PARAMETER" "max_task_name_len"]
     xput_define $config_file "configMAX_TASK_NAME_LEN"  $max_task_name_len
     
-    set val [xget_value $os_handle "PARAMETER" "idle_yield"]
+    set val [get_property CONFIG.idle_yield  $os_handle]
+    #set val [xget_value $os_handle "PARAMETER" "idle_yield"]
     if {$val == "false"} {
         xput_define $config_file "configIDLE_SHOULD_YIELD"  "0"
     } else {
         xput_define $config_file "configIDLE_SHOULD_YIELD"  "1"
     }
     
-    set val [xget_value $os_handle "PARAMETER" "timer_task_priority"]
+    set val [get_property CONFIG.timer_task_priority  $os_handle]
+    #set val [xget_value $os_handle "PARAMETER" "timer_task_priority"]
 	if {$val == "false"} {
 		xput_define $config_file "configTIMER_TASK_PRIORITY"  "0"
 	} else {
 		xput_define $config_file "configTIMER_TASK_PRIORITY"  "1"
 	}
 
-	set val [xget_value $os_handle "PARAMETER" "timer_command_queue_length"]
+    set val [get_property CONFIG.timer_command_queue_length  $os_handle]
+    #set val [xget_value $os_handle "PARAMETER" "timer_command_queue_length"]
 	if {$val == "false"} {
 		xput_define $config_file "configTIMER_QUEUE_LENGTH"  "0"
 	} else {
 		xput_define $config_file "configTIMER_QUEUE_LENGTH"  "10"
 	}
 
-	set val [xget_value $os_handle "PARAMETER" "timer_task_stack_depth"]
+    set val [get_property CONFIG.timer_task_stack_depth  $os_handle]
+    #set val [xget_value $os_handle "PARAMETER" "timer_task_stack_depth"]
 	if {$val == "false"} {
 		xput_define $config_file "configTIMER_TASK_STACK_DEPTH"  "0"
 	} else {
 		xput_define $config_file "configTIMER_TASK_STACK_DEPTH"  $min_stack
 	}
-	
+		
     xput_define $config_file "INCLUDE_vTaskCleanUpResources" "0"
     xput_define $config_file "INCLUDE_vTaskDelay"        "1"
     xput_define $config_file "INCLUDE_vTaskDelayUntil"   "1"

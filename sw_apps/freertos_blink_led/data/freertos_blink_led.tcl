@@ -66,28 +66,31 @@ proc swapp_get_description {} {
     return "Blink LED using FreeRTOS features";
 }
 
-proc get_os {} {
-    set oslist [xget_sw_modules "type" "os"];
-    set os [lindex $oslist 0];
+proc get_stdout {} {
+    set os [get_os]
 
     if { $os == "" } {
         error "No Operating System specified in the Board Support Package.";
     }
     
-    return $os;
-}
-
-proc get_stdout {} {
-    set os [get_os];
-    set stdout [xget_sw_module_parameter $os "STDOUT"];
+    set stdout [get_property CONFIG.STDOUT $os];
     return $stdout;
 }
 
 proc check_stdout_hw {} {
-    set p7_uarts [xget_ips "type" "ps7_uart"];
-    if { ([llength $p7_uarts] == 0) } {
-	    error "This application requires a Uart IP in the hardware."
-    }
+	set slaves [get_property SLAVES [get_cells [get_sw_processor]]]
+	foreach slave $slaves {
+		set slave_type [get_property IP_NAME [get_cells $slave]];
+		# Check for MDM-Uart peripheral. The MDM would be listed as a peripheral
+		# only if it has a UART interface. So no further check is required
+		if { $slave_type == "ps7_uart" || $slave_type == "axi_uartlite" ||
+			 $slave_type == "axi_uart16550" || $slave_type == "iomodule" ||
+			 $slave_type == "mdm" } {
+			return;
+		}
+	}
+    error "This application requires a Uart IP in the hardware."
+
 }
 
 proc check_stdout_sw {} {
@@ -111,27 +114,12 @@ proc swapp_is_supported_sw {} {
     return 1;
 }
 
-# depending on the type of os (standalone|xilkernel), choose
-# the correct source files
-proc swapp_generate {} {
-
-    # cleanup this file for writing
-    set fid [open "platform_config.h" "w+"];
-    puts $fid "#ifndef __PLATFORM_CONFIG_H_";
-    puts $fid "#define __PLATFORM_CONFIG_H_\n";
-
-    # if we have a ps7_uart as stdout, then generate some config for that
-    generate_stdout_config $fid;
-
-    puts $fid "#endif";
-    close $fid;
-}
-
 proc generate_stdout_config { fid } {
     set stdout [get_stdout];
+    set stdout [get_cells $stdout]
 
     # if stdout is uartlite, we don't have to generate anything
-    set stdout_type [xget_ip_attribute "type" $stdout];
+    set stdout_type [get_property IP_NAME $stdout];
 
     if { [regexp -nocase "uartlite" $stdout_type] || [string match -nocase "mdm" $stdout_type] } {
         return;
@@ -150,7 +138,7 @@ proc generate_stdout_config { fid } {
         puts $fid "#define STDOUT_IS_PS7_UART";
         
         # and get it device id
-        set p7_uarts [lsort [xget_ips "type" "ps7_uart"]];
+        set p7_uarts [lsort [get_cells -filter { ip_name == "ps7_uart"} ]];
         set id 0
         foreach uart $p7_uarts {
             if {[string compare -nocase $uart $stdout] == 0} {
@@ -160,5 +148,21 @@ proc generate_stdout_config { fid } {
 	    incr id
 	}
     }
+}
+
+# depending on the type of os (standalone|xilkernel), choose
+# the correct source files
+proc swapp_generate {} {
+
+    # cleanup this file for writing
+    set fid [open "platform_config.h" "w+"];
+    puts $fid "#ifndef __PLATFORM_CONFIG_H_";
+    puts $fid "#define __PLATFORM_CONFIG_H_\n";
+
+    # if we have a ps7_uart as stdout, then generate some config for that
+    generate_stdout_config $fid;
+
+    puts $fid "#endif";
+    close $fid;
 }
 

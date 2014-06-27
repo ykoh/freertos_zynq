@@ -63,19 +63,21 @@ OPTION psf_version = 2.1.0 ;
 BEGIN OS freertos_zynq 
 		
   OPTION DRC = FreeRTOS_drc ; 
+  OPTION APP_LINKER_FLAGS = "-Wl,--start-group,-lxil,-lfreertos,-lgcc,-lc,--end-group";
+  OPTION DESC = "FreeRTOS is a popular open source RTOS";
   OPTION supported_peripherals = ps7_cortexa9;
   OPTION COPYFILES = all;	
-  OPTION DEPENDS = (standalone_v3_05_a);
+  OPTION DEPENDS = (standalone_v4_1);
   #OPTION APP_COMPILER_FLAGS = "-D__USE_AMP__";
-  OPTION APP_LINKER_FLAGS = "-Wl,--start-group,-lxil,-lfreertos,-lgcc,-lc,--end-group";
-
-  OPTION DESC = "FreeRTOS is a popular open source RTOS";
+  OPTION VERSION = 7.02.a;
 
   # STDIN/STDOUT
-  PARAM name = stdin, type = peripheral_instance, requires_interface = stdin, default=none, desc = "Specify the instance name of the standard input peripheral";
-  PARAM name = stdout, type = peripheral_instance, requires_interface = stdout, default=none, desc = "Specify the instance name of the standard output peripheral";
+  PARAM name = stdin, desc = "stdin peripheral", type = peripheral_instance, requires_interface = stdin, default=none;
+  PARAM name = stdout, desc = "stdout peripheral", type = peripheral_instance, requires_interface = stdout, default=none;
 
   BEGIN CATEGORY kernel_behavior
+    PARAM name = tick_rate, type = int, default = 10, desc = "ykoh added ---- tick_rate";
+
     PARAM name = kernel_behavior, type = bool, default = true, desc = "Parameters relating to the kernel behavior", permit = user;
     PARAM name = use_preemption, type = bool, default = true, desc = "Set to true to use the preemptive scheduler, or false to use the cooperative scheduler.";
     PARAM name = idle_yield, type = bool, default = true, desc = "Set to true if the Idle task should yield if another idle priority task is able to run, or false if the idle task should always use its entire time slice unless it is preempted.";
@@ -107,7 +109,8 @@ BEGIN OS freertos_zynq
 	PARAM name = use_timers, type = bool, default = true, desc = "Set to true to include software timer functionality, or false to exclude software timer functionality";
 	PARAM name = timer_task_priority, type = string, default = "(configMAX_PRIORITIES - 1)", desc = "The priority at which the software timer service/daemon task will execute.";
 	PARAM name = timer_command_queue_length, type = int, default = 10, desc = "The number of commands the timer command queue can hold at any one time.";
-	PARAM name = timer_task_stack_depth, type = string, default = "(configMINIMAL_STACK_SIZE), desc = "The size of the stack allocated to the timer service/daemon task.";
+	PARAM name = timer_task_stack_depth, type = string, default = "(configMINIMAL_STACK_SIZE)", desc = "The size of the stack allocated to the timer service/daemon task.";
   END CATEGORY
   
 END OS 
+
